@@ -4,8 +4,6 @@ import { useState } from "react"
 import { StartScreen } from "@/components/truco/start-screen"
 import { LobbyScreen } from "@/components/truco/lobby-screen"
 import { GameScreen } from "@/components/truco/game-screen"
-import { AuthScreen } from "@/components/auth/auth-screen"
-import { useAuth } from "@/hooks/use-auth"
 import type { GameConfig } from "@/types/truco"
 
 type Screen = "start" | "lobby" | "game"
@@ -14,25 +12,17 @@ export default function TrucoGame() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("start")
   const [roomId, setRoomId] = useState("")
   const [gameConfig, setGameConfig] = useState<GameConfig>({ maxPoints: 15, withFlor: true })
-  const { user, loading } = useAuth()
+  const [playerName, setPlayerName] = useState("")
+  const [playerId, setPlayerId] = useState("")
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Cargando...</p>
-        </div>
-      </div>
-    )
+  if (!playerId) {
+    const anonymousId = `player_${Math.random().toString(36).substr(2, 9)}`
+    setPlayerId(anonymousId)
   }
 
-  if (!user) {
-    return <AuthScreen onAuthenticated={() => setCurrentScreen("start")} />
-  }
-
-  const handleStartGame = (config: GameConfig) => {
+  const handleStartGame = (config: GameConfig, name: string) => {
     setGameConfig(config)
+    setPlayerName(name)
     setCurrentScreen("lobby")
   }
 
@@ -49,9 +39,18 @@ export default function TrucoGame() {
     <main className="min-h-screen bg-background">
       {currentScreen === "start" && <StartScreen onStart={handleStartGame} />}
       {currentScreen === "lobby" && (
-        <LobbyScreen gameConfig={gameConfig} onJoinRoom={handleJoinRoom} onBack={() => setCurrentScreen("start")} />
+        <LobbyScreen
+          gameConfig={gameConfig}
+          playerName={playerName}
+          playerId={playerId}
+          onJoinRoom={handleJoinRoom}
+          onBack={() => setCurrentScreen("start")}
+        />
       )}
-      {currentScreen === "game" && <GameScreen roomId={roomId} onBack={handleBackToLobby} />}
+      {currentScreen === "game" && (
+        <GameScreen roomId={roomId} playerName={playerName} playerId={playerId} onBack={handleBackToLobby} />
+      )}
     </main>
   )
 }
+
