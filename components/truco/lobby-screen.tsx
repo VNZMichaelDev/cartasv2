@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Copy, Users, RefreshCw, Clock, Settings } from "lucide-react"
-import { useRoomsList } from "@/hooks/use-rooms-list"
-import { useAuth } from "@/hooks/use-auth"
 import type { GameConfig } from "@/types/truco"
 
 interface LobbyScreenProps {
   gameConfig: GameConfig
+  playerName: string
+  playerId: string
   onJoinRoom: (roomId: string) => void
   onBack: () => void
 }
@@ -26,19 +26,31 @@ interface WaitingRoom {
   creator: string
 }
 
-export function LobbyScreen({ gameConfig, onJoinRoom, onBack }: LobbyScreenProps) {
+export function LobbyScreen({ gameConfig, playerName, playerId, onJoinRoom, onBack }: LobbyScreenProps) {
   const [joinRoomId, setJoinRoomId] = useState("")
   const [createdRoomId, setCreatedRoomId] = useState("")
   const [createdRoomCode, setCreatedRoomCode] = useState("")
   const [loading, setLoading] = useState(false)
   const [quickMatchLoading, setQuickMatchLoading] = useState(false)
+  const [waitingRooms, setWaitingRooms] = useState<WaitingRoom[]>([])
+  const [roomsLoading, setRoomsLoading] = useState(false)
 
-  const { user } = useAuth()
-  const { rooms: waitingRooms, loading: roomsLoading, refreshRooms } = useRoomsList()
+  const refreshRooms = async () => {
+    setRoomsLoading(true)
+    try {
+      const response = await fetch("/api/rooms")
+      const data = await response.json()
+      if (data.rooms) {
+        setWaitingRooms(data.rooms)
+      }
+    } catch (error) {
+      console.error("Error fetching rooms:", error)
+    } finally {
+      setRoomsLoading(false)
+    }
+  }
 
   const handleCreateRoom = async () => {
-    if (!user) return
-
     setLoading(true)
     try {
       const response = await fetch("/api/rooms", {
@@ -47,6 +59,8 @@ export function LobbyScreen({ gameConfig, onJoinRoom, onBack }: LobbyScreenProps
         body: JSON.stringify({
           maxPoints: gameConfig.maxPoints,
           withFlor: gameConfig.withFlor,
+          playerName,
+          playerId,
         }),
       })
 
@@ -86,13 +100,17 @@ export function LobbyScreen({ gameConfig, onJoinRoom, onBack }: LobbyScreenProps
 
   const handleJoinRoom = async (roomId?: string) => {
     const targetRoomId = roomId || joinRoomId.trim()
-    if (!targetRoomId || !user) return
+    if (!targetRoomId) return
 
     try {
       const response = await fetch("/api/rooms/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId: targetRoomId }),
+        body: JSON.stringify({
+          roomId: targetRoomId,
+          playerName,
+          playerId,
+        }),
       })
 
       const data = await response.json()
@@ -107,13 +125,17 @@ export function LobbyScreen({ gameConfig, onJoinRoom, onBack }: LobbyScreenProps
   }
 
   const handleJoinByCode = async () => {
-    if (!joinRoomId.trim() || !user) return
+    if (!joinRoomId.trim()) return
 
     try {
       const response = await fetch("/api/rooms/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: joinRoomId.trim().toUpperCase() }),
+        body: JSON.stringify({
+          code: joinRoomId.trim().toUpperCase(),
+          playerName,
+          playerId,
+        }),
       })
 
       const data = await response.json()
@@ -158,10 +180,6 @@ export function LobbyScreen({ gameConfig, onJoinRoom, onBack }: LobbyScreenProps
     (room) => room.maxPoints === gameConfig.maxPoints && room.withFlor === gameConfig.withFlor,
   )
 
-  if (!user) {
-    return <div>Loading...</div>
-  }
-
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto">
@@ -170,9 +188,7 @@ export function LobbyScreen({ gameConfig, onJoinRoom, onBack }: LobbyScreenProps
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-primary">
-              Bienvenido, {user.user_metadata?.display_name || "Jugador"}
-            </h1>
+            <h1 className="text-2xl font-bold text-primary">Bienvenido, {playerName}</h1>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>Elegí cómo querés jugar</span>
               <div className="flex items-center gap-2">
