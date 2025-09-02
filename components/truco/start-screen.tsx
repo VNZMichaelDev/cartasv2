@@ -10,7 +10,7 @@ import { GameConfigComponent } from "./game-config"
 import type { GameConfig } from "@/types/truco"
 
 interface StartScreenProps {
-  onStart: (name: string, config: GameConfig) => void
+  onStart: (config: GameConfig, name: string) => void
 }
 
 export function StartScreen({ onStart }: StartScreenProps) {
@@ -25,7 +25,7 @@ export function StartScreen({ onStart }: StartScreenProps) {
   }
 
   const handleConfigSet = (config: GameConfig) => {
-    onStart(name.trim(), config)
+    onStart(config, name.trim())
   }
 
   const handleBack = () => {
